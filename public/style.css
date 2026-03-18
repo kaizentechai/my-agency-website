@@ -1,0 +1,131 @@
+/* Global Styles */
+:root {
+    --primary: #4158D0;
+    --secondary: #C850C0;
+    --accent: #FFCC70;
+    --dark: #2d3436;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    padding-top: 76px;
+}
+
+/* Navbar */
+.navbar {
+    background: rgba(33, 37, 41, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+.navbar-brand {
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+.navbar-brand i {
+    color: var(--secondary);
+}
+
+/* Hero Section */
+.hero-section {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Cards */
+.service-card {
+    text-align: center;
+    padding: 2rem;
+    border-radius: 15px;
+    background: white;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    transition: transform 0.3s;
+    height: 100%;
+}
+
+.service-card:hover {
+    transform: translateY(-10px);
+}
+
+.service-card i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--primary);
+}
+
+/* Contact Form */
+.form-control {
+    border: 2px solid #eee;
+    border-radius: 10px;
+    padding: 12px;
+    transition: all 0.3s;
+}
+
+.form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(65, 88, 208, 0.1);
+}
+
+/* WhatsApp Float */
+.whatsapp-float {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    background: #25D366;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    text-decoration: none;
+    box-shadow: 0 10px 30px rgba(37, 211, 102, 0.4);
+    z-index: 999;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.whatsapp-float:hover {
+    color: white;
+    transform: scale(1.15);
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border: none;
+    border-radius: 50px;
+    padding: 12px 30px;
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(65, 88, 208, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hero-section {
+        min-height: 70vh;
+    }
+    
+    .whatsapp-float {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        bottom: 20px;
+        right: 20px;
+    }
+}
