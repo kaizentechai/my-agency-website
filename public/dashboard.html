@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Kaizen Web</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { background: #f8f9fa; }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            height: 100%;
+            background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%);
+            color: white;
+            padding: 20px;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h3 class="mb-4"><i class="fas fa-bolt"></i> Kaizen Web</h3>
+        <nav class="nav flex-column">
+            <a class="nav-link text-white mb-3" href="#" onclick="loadPage('dashboard')">
+                <i class="fas fa-home me-2"></i> Dashboard
+            </a>
+            <a class="nav-link text-white mb-3" href="#" onclick="loadPage('leads')">
+                <i class="fas fa-users me-2"></i> Leads
+            </a>
+            <a class="nav-link text-white mb-3" href="#" onclick="loadPage('analytics')">
+                <i class="fas fa-chart-line me-2"></i> Analytics
+            </a>
+            <a class="nav-link text-white mb-3" href="#" onclick="logout()">
+                <i class="fas fa-sign-out-alt me-2"></i> Logout
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p>Loading dashboard...</p>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        const token = localStorage.getItem('token');
+        
+        if (!token) window.location.href = '/login.html';
+        
+        // Connect to Socket.IO
+        socket = io({ auth: { token } });
+        
+        socket.on('connect', () => {
+            console.log('Connected to real-time server');
+        });
+        
+        socket.on('new-lead', (lead) => {
+            showNotification('New lead received!', lead.name);
+            loadPage('leads');
+        });
+        
+        // Load default page
+        loadPage('dashboard');
+        
+        async function loadPage(page) {
+            const content = document.getElementById('mainContent');
+            
+            if (page === 'dashboard') {
+                content.innerHTML = await getDashboardHTML();
+            } else if (page === 'leads') {
+                content.innerHTML = await getLeadsHTML();
+            } else if (page === 'analytics') {
+                content.innerHTML = await getAnalyticsHTML();
+            }
+        }
+        
+        async function getDashboardHTML() {
+            try {
+                const res = await fetch('/api/analytics', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                
+                return `
+                    <h2 class="mb-4">Dashboard</h2>
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <h6>Total Leads</h6>
+                                <h2 class="text-primary">${data.total || 0}</h2>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <h6>Today's Leads</h6>
+                                <h2 class="text-success">${data.today || 0}</h2>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <h6>Conversion Rate</h6>
+                                <h2 class="text-info">${data.total ? Math.round((data.today/data.total)*100) : 0}%</h2>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-4 p-3">
+                        <canvas id="leadChart" height="100"></canvas>
+                    </div>
+                    
+                    <script>
+                        new Chart(document.getElementById('leadChart'), {
+                            type: 'line',
+                            data: {
+                                labels: ${JSON.stringify(data.monthly?.map(d => d.date) || [])},
+                                datasets: [{
+                                    label: 'Leads per day',
+                                    data: ${JSON.stringify(data.monthly?.map(d => d.count) || [])},
+                                    borderColor: '#4158D0'
+                                }]
+                            }
+                        });
+                    <\/script>
+                `;
+            } catch (err) {
+                return '<p class="text-danger">Failed to load dashboard</p>';
+            }
+        }
+        
+        async function getLeadsHTML() {
+            try {
+                const res = await fetch('/api/contacts?page=1', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                
+                let html = `
+                    <h2 class="mb-4">Leads</h2>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Message</th>
+                                            <th>Date</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                `;
+                
+                data.contacts?.forEach(contact => {
+                    html += `
+                        <tr>
+                            <td>${contact.name}</td>
+                            <td>${contact.email}</td>
+                            <td>${contact.message.substring(0, 30)}...</td>
+                            <td>${new Date(contact.created_at).toLocaleDateString()}</td>
+                            <td>
+                                <select class="form-select form-select-sm" onchange="updateStatus(${contact.id}, this.value)">
+                                    <option value="new" ${contact.status === 'new' ? 'selected' : ''}>New</option>
+                                    <option value="contacted" ${contact.status === 'contacted' ? 'selected' : ''}>Contacted</option>
+                                    <option value="converted" ${contact.status === 'converted' ? 'selected' : ''}>Converted</option>
+                                </select>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deleteLead(${contact.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                return html;
+            } catch (err) {
+                return '<p class="text-danger">Failed to load leads</p>';
+            }
+        }
+        
+        async function getAnalyticsHTML() {
+            return `
+                <h2 class="mb-4">Analytics</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card p-3">
+                            <canvas id="pieChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card p-3">
+                            <h5>Quick Stats</h5>
+                            <hr>
+                            <p>Coming soon: Source tracking, conversion rates, and more!</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function updateStatus(id, status) {
+            try {
+                await fetch(`/api/contacts/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status })
+                });
+                showNotification('Status updated', 'success');
+            } catch (err) {
+                alert('Failed to update status');
+            }
+        }
+        
+        async function deleteLead(id) {
+            if (!confirm('Are you sure?')) return;
+            
+            try {
+                await fetch(`/api/contacts/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                loadPage('leads');
+                showNotification('Lead deleted', 'success');
+            } catch (err) {
+                alert('Failed to delete');
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+        
+        function showNotification(title, message) {
+            // Simple alert for now - can be enhanced with toast
+            console.log(`${title}: ${message}`);
+        }
+    </script>
+</body>
+</html>
